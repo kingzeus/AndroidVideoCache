@@ -26,12 +26,12 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 import static com.danikula.videocache.Preconditions.checkAllNotNull;
 import static com.danikula.videocache.Preconditions.checkNotNull;
 import static com.danikula.videocache.ProxyCacheUtils.LOG_TAG;
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
 /**
  * Simple lightweight proxy server with file caching support that handles HTTP requests.
@@ -91,24 +91,23 @@ public class HttpProxyCacheServer {
 
     private void makeSureServerWorks() {
         int maxPingAttempts = 3;
-        int delay = 200;
+        int delay = 300;
         int pingAttempts = 0;
         while (pingAttempts < maxPingAttempts) {
             try {
                 Future<Boolean> pingFuture = socketProcessor.submit(new PingCallable());
-                pinged = pingFuture.get(delay, TimeUnit.MILLISECONDS);
-                if (pinged) {
+                this.pinged = pingFuture.get(delay, MILLISECONDS);
+                if (this.pinged) {
                     return;
                 }
-                pingAttempts++;
                 SystemClock.sleep(delay);
-                delay *= 2;
             } catch (InterruptedException | ExecutionException | TimeoutException e) {
                 Log.e(LOG_TAG, "Error pinging server [attempt: " + pingAttempts + ", timeout: " + delay + "]. ", e);
             }
+            pingAttempts++;
+            delay *= 2;
         }
-
-        Log.e(LOG_TAG, "Shutdown server… Error pinging server [attempt: " + pingAttempts + ", timeout: " + delay + "]. " +
+        Log.e(LOG_TAG, "Shutdown server… Error pinging server [attempts: " + pingAttempts + ", max timeout: " + delay / 2 + "]. " +
                 "If you see this message, please, email me danikula@gmail.com");
         shutdown();
     }
